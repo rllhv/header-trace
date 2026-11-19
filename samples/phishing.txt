@@ -1,0 +1,26 @@
+Delivered-To: victim@mail-provider.example
+Received: by 2002:a05:6a00:1234:b0:1c3:aa11:bb22 with SMTP id q1csp123456pxb;
+        Tue, 6 Oct 2026 09:41:17 -0700 (PDT)
+Received: from mx-in.mail-provider.example (mx-in.mail-provider.example. [198.51.100.25])
+        by mx.mail-provider.example with ESMTPS id k12si3456789eds.12.2026.10.06.09.41.16
+        for <victim@mail-provider.example>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Tue, 06 Oct 2026 09:41:16 -0700 (PDT)
+Received: from smtp.paypa1-secure.example (unknown [203.0.113.77])
+        by mx-in.mail-provider.example with ESMTP id 7f3a9c;
+        Tue, 6 Oct 2026 16:41:15 +0000
+Received: from localhost (localhost [127.0.0.1])
+        by smtp.paypa1-secure.example (Postfix) with ESMTP id 5B2C1E0A1;
+        Tue, 6 Oct 2026 16:55:40 +0000 (UTC)
+Authentication-Results: mx.mail-provider.example;
+       spf=fail (mail-provider.example: domain of bounce@paypa1-secure.example does not designate 203.0.113.77 as permitted sender) smtp.mailfrom=bounce@paypa1-secure.example;
+       dkim=none (message not signed);
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=paypa1-secure.example
+Return-Path: <bounce@paypa1-secure.example>
+From: "PayPal Support" <service@paypa1-secure.example>
+Reply-To: "PayPal Support" <help.desk.2026@mail-box.example>
+To: victim@mail-provider.example
+Subject: =?UTF-8?B?4pqg77iPIFlvdXIgYWNjb3VudCBpcyBsaW1pdGVkIC0gYWN0aW9uIHJlcXVpcmVk?=
+Date: Tue, 6 Oct 2026 16:41:10 +0000
+MIME-Version: 1.0
+Content-Type: text/html; charset="UTF-8"

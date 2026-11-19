@@ -1,0 +1,1574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="color-scheme" content="light dark">
+<title>Header trace: where did this email really come from?</title>
+<style>
+:root {
+  --paper: #EDF0F6; --surface: #FFFFFF; --wash: #F5F7FB; --ink: #0F1A33; --muted: #505B75; --line: #D2D9E6;
+  --red: #C62F2F; --blue: #1F4FBF; --focus: #1F4FBF;
+  --danger: #B02020; --danger-bg: #FCECEC;
+  --warning: #8A4B00; --warning-bg: #FFF2DC;
+  --info: #2C4A82; --info-bg: #E8EEF9;
+  --ok: #17684A; --ok-bg: #E3F3EA;
+  --sans: "Avenir Next", "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0D1424; --surface: #141D33; --wash: #101930; --ink: #E7ECF8; --muted: #9BA8C4; --line: #27334F;
+    --red: #FF6F67; --blue: #7EA6FF; --focus: #7EA6FF;
+    --danger: #FF8A84; --danger-bg: #3A1A1E;
+    --warning: #F2B866; --warning-bg: #3A2A12;
+    --info: #9DB8F0; --info-bg: #1B2A4A;
+    --ok: #5FD0A0; --ok-bg: #12332A;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0D1424; --surface: #141D33; --wash: #101930; --ink: #E7ECF8; --muted: #9BA8C4; --line: #27334F;
+  --red: #FF6F67; --blue: #7EA6FF; --focus: #7EA6FF;
+  --danger: #FF8A84; --danger-bg: #3A1A1E;
+  --warning: #F2B866; --warning-bg: #3A2A12;
+  --info: #9DB8F0; --info-bg: #1B2A4A;
+  --ok: #5FD0A0; --ok-bg: #12332A;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+*, *::before, *::after { box-sizing: inherit; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.55 var(--sans); -webkit-text-size-adjust: 100%; }
+
+.band {
+  height: 10px;
+  background: repeating-linear-gradient(-45deg, var(--red) 0 14px, var(--surface) 14px 22px, var(--blue) 22px 36px, var(--surface) 36px 44px);
+}
+.shell { max-width: 1240px; margin: 0 auto; padding: 22px clamp(16px, 4vw, 40px) 64px; }
+.wordmark { margin: 0 0 clamp(18px, 4vw, 40px); font-weight: 800; letter-spacing: -0.01em; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(28px, 4vw, 64px); align-items: start; }
+@media (max-width: 920px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+h1 { margin: 0 0 .45em; font-size: clamp(2.1rem, 4.4vw, 3.2rem); line-height: 1.03; letter-spacing: -0.025em; font-weight: 800; text-wrap: balance; }
+.lede { margin: 0 0 1.4rem; color: var(--muted); max-width: 44ch; }
+
+.field-label { display: block; margin: 0 0 .4rem; font-weight: 700; }
+textarea {
+  display: block; width: 100%; min-height: 300px; resize: vertical; padding: 14px 16px;
+  font: 12.5px/1.55 var(--mono); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px;
+}
+textarea:focus-visible, .btn:focus-visible, summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.note { margin: .5rem 0 0; padding: 8px 12px; background: var(--info-bg); color: var(--info); border-radius: 6px; font-size: .92rem; }
+.note[hidden] { display: none; }
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 1rem 0 0; }
+.actions .label { color: var(--muted); margin-right: .15rem; }
+.btn { font: inherit; font-weight: 600; padding: .5rem .95rem; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn:hover { border-color: var(--blue); }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+
+.howto { margin-top: 1.4rem; color: var(--muted); }
+summary { cursor: pointer; font-weight: 650; }
+.howto ul { margin: .6rem 0 0; padding-left: 1.2rem; }
+.howto li { margin: .25rem 0; }
+
+.results { min-width: 0; }
+.block { margin: 0 0 40px; }
+.block h2 { margin: 0 0 .7rem; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.01em; }
+.sub { margin: 0 0 .4rem; color: var(--muted); max-width: 62ch; }
+.empty { color: var(--muted); max-width: 46ch; padding: 1.2rem 0; }
+
+.facts { display: grid; gap: .3rem; margin: 0 0 1rem; }
+.facts .row { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: .75rem; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; overflow-wrap: anywhere; }
+.addr { font-family: var(--mono); font-size: .92em; }
+/* dir="auto" keeps Arabic text in the right reading order; this keeps the block itself aligned with its label. */
+.facts dd, .hop-name, .hop-by, .evidence > div, .raw-value { text-align: left; }
+.verdict { margin: 0; padding: 12px 16px; border-left: 5px solid var(--c); background: var(--bg); font-weight: 600; }
+.verdict.danger { --c: var(--danger); --bg: var(--danger-bg); }
+.verdict.warning { --c: var(--warning); --bg: var(--warning-bg); }
+.verdict.ok { --c: var(--ok); --bg: var(--ok-bg); }
+
+.route { list-style: none; margin: 1.2rem 0 0; padding: 0 0 0 36px; position: relative; }
+.route::before {
+  content: ""; position: absolute; left: 11px; top: 8px; bottom: 12px; width: 3px; border-radius: 2px;
+  background: linear-gradient(var(--red), var(--blue)); transform-origin: top;
+  animation: draw 1.1s cubic-bezier(.3, .7, .2, 1) both;
+}
+@keyframes draw { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .route::before { animation: none; } }
+.hop { position: relative; padding: 0 0 24px; }
+.hop:last-child { padding-bottom: 0; }
+.hop::before {
+  content: ""; position: absolute; left: -31px; top: 3px; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--surface); border: 3px solid var(--muted);
+}
+.hop.trusted::before { background: var(--blue); border-color: var(--blue); }
+.hop.flagged::before { background: var(--red); border-color: var(--red); }
+.hop-name { font-weight: 700; overflow-wrap: anywhere; }
+.hop-ip { margin-left: .5em; font: 12.5px var(--mono); color: var(--muted); font-weight: 400; }
+.hop-by, .hop-meta { color: var(--muted); font-size: .93rem; overflow-wrap: anywhere; }
+.hop-flag { color: var(--danger); font-weight: 650; }
+.hop-tag { display: inline-block; margin-top: 5px; padding: 2px 10px; border-radius: 999px; font-size: .82rem; background: var(--wash); border: 1px solid var(--line); color: var(--muted); }
+.hop.trusted .hop-tag { background: var(--info-bg); border-color: transparent; color: var(--info); font-weight: 650; }
+
+.group-title { margin: 26px 0 6px; font-size: 1.05rem; font-weight: 800; color: var(--c); }
+.sev-danger { --c: var(--danger); } .sev-warning { --c: var(--warning); } .sev-info { --c: var(--info); } .sev-ok { --c: var(--ok); }
+.finding { padding: 15px 0 15px 16px; border-top: 1px solid var(--line); border-left: 4px solid var(--c); }
+.finding-title { margin: 0; font-size: 1rem; font-weight: 700; }
+.finding-why { margin: .25rem 0 0; color: var(--muted); max-width: 66ch; }
+.evidence { margin: .65rem 0 0; padding: .55rem .8rem; background: var(--wash); border-left: 3px solid var(--c); font: 12.5px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.passed { margin-top: 22px; }
+.passed > div { margin-top: .4rem; }
+.raw summary { font-size: 1.05rem; }
+.raw-list { margin-top: .7rem; border-top: 1px solid var(--line); }
+.raw-row { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: .75rem; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
+.raw-name { font-weight: 650; overflow-wrap: anywhere; }
+.raw-value { font-family: var(--mono); font-size: 12.5px; overflow-wrap: anywhere; color: var(--muted); }
+
+.foot { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: .92rem; max-width: 72ch; }
+.foot p { margin: 0 0 .5rem; }
+
+@media (max-width: 920px) { textarea { min-height: 190px; } }
+@media (max-width: 560px) {
+  .facts .row, .raw-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
+</style>
+</head>
+<body>
+<div class="band" aria-hidden="true"></div>
+<div class="shell">
+  <p class="wordmark">Header trace</p>
+  <main class="layout">
+    <section class="intake" aria-labelledby="title">
+      <h1 id="title">Where did this email really come from?</h1>
+      <p class="lede">Paste an email's full headers to see the route it took, whether the sender was verified, and what looks off. Your headers stay in this tab, and the page is blocked from making network requests.</p>
+      <label class="field-label" for="input">Email headers</label>
+      <textarea id="input" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="Received: from ...&#10;Authentication-Results: ...&#10;From: ...&#10;Subject: ..."></textarea>
+      <p class="note" id="sample-note" hidden>This is a made-up sample; every name and address in it is fictional. Paste your own headers to replace it.</p>
+      <div class="actions">
+        <span class="label">Try a sample:</span>
+        <button type="button" class="btn" data-sample="phishing">Phishing</button>
+        <button type="button" class="btn" data-sample="lookalike">Look-alike domain</button>
+        <button type="button" class="btn" data-sample="normal">Normal newsletter</button>
+        <button type="button" class="btn quiet" id="clear">Clear</button>
+      </div>
+      <details class="howto">
+        <summary>How do I get an email's headers?</summary>
+        <ul>
+          <li><strong>Gmail:</strong> open the message, choose the three-dot menu, then Show original.</li>
+          <li><strong>Outlook:</strong> open the message, choose File, then Properties, and copy the Internet headers box.</li>
+          <li><strong>Apple Mail:</strong> choose View, then Message, then All Headers.</li>
+          <li>Copy the whole text. Only the header lines at the top are read.</li>
+        </ul>
+      </details>
+    </section>
+    <section class="results" id="results" aria-live="polite" aria-label="Analysis results"></section>
+  </main>
+  <footer class="foot">
+    <p>Headers show where a message came from and whether its sender was verified. They cannot judge the message itself, so links, attachments and wording still need your care.</p>
+    <p>Look-alike checks use a short built-in list of well-known names, so a clean result is not a guarantee.</p>
+  </footer>
+</div>
+<noscript><p style="padding:16px">This tool reads headers in your browser, so it needs JavaScript turned on.</p></noscript>
+<script>(() => {
+'use strict';
+const SAMPLES = {"phishing":"Delivered-To: victim@mail-provider.example\nReceived: by 2002:a05:6a00:1234:b0:1c3:aa11:bb22 with SMTP id q1csp123456pxb;\n        Tue, 6 Oct 2026 09:41:17 -0700 (PDT)\nReceived: from mx-in.mail-provider.example (mx-in.mail-provider.example. [198.51.100.25])\n        by mx.mail-provider.example with ESMTPS id k12si3456789eds.12.2026.10.06.09.41.16\n        for \u003cvictim@mail-provider.example>\n        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);\n        Tue, 06 Oct 2026 09:41:16 -0700 (PDT)\nReceived: from smtp.paypa1-secure.example (unknown [203.0.113.77])\n        by mx-in.mail-provider.example with ESMTP id 7f3a9c;\n        Tue, 6 Oct 2026 16:41:15 +0000\nReceived: from localhost (localhost [127.0.0.1])\n        by smtp.paypa1-secure.example (Postfix) with ESMTP id 5B2C1E0A1;\n        Tue, 6 Oct 2026 16:55:40 +0000 (UTC)\nAuthentication-Results: mx.mail-provider.example;\n       spf=fail (mail-provider.example: domain of bounce@paypa1-secure.example does not designate 203.0.113.77 as permitted sender) smtp.mailfrom=bounce@paypa1-secure.example;\n       dkim=none (message not signed);\n       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=paypa1-secure.example\nReturn-Path: \u003cbounce@paypa1-secure.example>\nFrom: \"PayPal Support\" \u003cservice@paypa1-secure.example>\nReply-To: \"PayPal Support\" \u003chelp.desk.2026@mail-box.example>\nTo: victim@mail-provider.example\nSubject: =?UTF-8?B?4pqg77iPIFlvdXIgYWNjb3VudCBpcyBsaW1pdGVkIC0gYWN0aW9uIHJlcXVpcmVk?=\nDate: Tue, 6 Oct 2026 16:41:10 +0000\nMIME-Version: 1.0\nContent-Type: text/html; charset=\"UTF-8\"\n","lookalike":"Delivered-To: sara@mail-provider.example\nReceived: by 2002:a05:6a00:1111:b0:1c3:dd44:ee55 with SMTP id z9csp11111pxb;\n        Wed, 7 Oct 2026 03:15:44 -0700 (PDT)\nReceived: from mail.xn--pple-43d.example (mail.xn--pple-43d.example [198.51.100.90])\n        by mx.mail-provider.example with ESMTPS id u7si222222ejt.5.2026.10.07.03.15.43\n        for \u003csara@mail-provider.example>;\n        Wed, 07 Oct 2026 03:15:43 -0700 (PDT)\nAuthentication-Results: mx.mail-provider.example;\n       dkim=pass header.d=xn--pple-43d.example header.s=mail;\n       spf=pass smtp.mailfrom=support@xn--pple-43d.example;\n       dmarc=pass (p=NONE) header.from=xn--pple-43d.example\nReturn-Path: \u003csupport@xn--pple-43d.example>\nFrom: \"Apple Support\" \u003csupport@xn--pple-43d.example>\nTo: sara@mail-provider.example\nSubject: =?UTF-8?B?2KrZhtio2YrZhzog2KrZhSDYqtmC2YrZitivINit2LPYp9io2YMgLSDZitix2KzZiSDYp9mE2KrYo9mD2YrYrw==?=\nDate: Wed, 7 Oct 2026 10:15:40 +0000\nMessage-ID: \u003ca1b2c3@xn--pple-43d.example>\nMIME-Version: 1.0\nContent-Type: text/plain; charset=\"UTF-8\"\n","normal":"Delivered-To: sara@mail-provider.example\nReceived: by 2002:a05:6a00:aaaa:b0:1c3:bb22:cc33 with SMTP id r2csp654321pxb;\n        Mon, 5 Oct 2026 08:02:11 -0700 (PDT)\nReceived: from out-12.news.example.com (out-12.news.example.com. [192.0.2.44])\n        by mx.mail-provider.example with ESMTPS id d5si9876543ejb.101.2026.10.05.08.02.10\n        for \u003csara@mail-provider.example>\n        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);\n        Mon, 05 Oct 2026 08:02:10 -0700 (PDT)\nReceived: from app-7.internal.example.com (app-7.internal.example.com [10.20.4.17])\n        by out-12.news.example.com (Postfix) with ESMTP id 4F1A92C0D;\n        Mon,  5 Oct 2026 15:02:08 +0000 (UTC)\nAuthentication-Results: mx.mail-provider.example;\n       dkim=pass header.i=@news.example.com header.s=s1 header.b=Ab12CdEf;\n       spf=pass (mail-provider.example: domain of bounces@bounces.news.example.com designates 192.0.2.44 as permitted sender) smtp.mailfrom=bounces@bounces.news.example.com;\n       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=news.example.com\nReturn-Path: \u003cbounces@bounces.news.example.com>\nFrom: \"Example News\" \u003chello@news.example.com>\nReply-To: hello@news.example.com\nTo: sara@mail-provider.example\nSubject: Your weekly digest\nDate: Mon, 5 Oct 2026 15:02:05 +0000\nMessage-ID: \u003c20261005150205.4F1A92C0D@out-12.news.example.com>\nMIME-Version: 1.0\nContent-Type: multipart/alternative; boundary=\"b1\"\n"};
+// ---- src/util/format.ts
+function formatTime(ms               )         {
+  if (ms === null) return 'unknown time';
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return 'unknown time';
+  return d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+}
+
+function formatDuration(ms        )         {
+  if (Math.abs(ms) < 1000) return 'under a second';
+  const s = Math.round(Math.abs(ms) / 1000);
+  if (s < 60) return `${s} s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} min`;
+  const hours = Math.floor(m / 60);
+  const rem = m % 60;
+  if (hours < 48) return rem ? `${hours} h ${rem} min` : `${hours} h`;
+  return `${Math.floor(hours / 24)} days`;
+}
+
+// ---- src/util/punycode.ts
+// Decoder for RFC 3492 (Punycode), used to reveal what an "xn--" label really says.
+const BASE = 36;
+const TMIN = 1;
+const TMAX = 26;
+const SKEW = 38;
+const DAMP = 700;
+const INITIAL_BIAS = 72;
+const INITIAL_N = 128;
+const MAX_INPUT = 100;
+
+function adapt(delta        , numPoints        , first         )         {
+  delta = first ? Math.floor(delta / DAMP) : delta >> 1;
+  delta += Math.floor(delta / numPoints);
+  let k = 0;
+  while (delta > ((BASE - TMIN) * TMAX) >> 1) {
+    delta = Math.floor(delta / (BASE - TMIN));
+    k += BASE;
+  }
+  return k + Math.floor(((BASE - TMIN + 1) * delta) / (delta + SKEW));
+}
+
+function digitValue(cp        )         {
+  if (cp >= 0x30 && cp <= 0x39) return 26 + (cp - 0x30);
+  if (cp >= 0x41 && cp <= 0x5a) return cp - 0x41;
+  if (cp >= 0x61 && cp <= 0x7a) return cp - 0x61;
+  return BASE;
+}
+
+/** Decodes the part of a label that follows "xn--". Throws on malformed input. */
+function punycodeDecode(input        )         {
+  if (input.length > MAX_INPUT) throw new RangeError('punycode input too long');
+  const output           = [];
+  let basic = input.lastIndexOf('-');
+  if (basic < 0) basic = 0;
+  for (let j = 0; j < basic; j++) {
+    const cp = input.charCodeAt(j);
+    if (cp >= 0x80) throw new RangeError('non-basic code point in basic section');
+    output.push(cp);
+  }
+  let n = INITIAL_N;
+  let i = 0;
+  let bias = INITIAL_BIAS;
+  let index = basic > 0 ? basic + 1 : 0;
+  while (index < input.length) {
+    const oldi = i;
+    let w = 1;
+    for (let k = BASE; ; k += BASE) {
+      if (index >= input.length) throw new RangeError('truncated punycode');
+      const digit = digitValue(input.charCodeAt(index++));
+      if (digit >= BASE) throw new RangeError('invalid punycode digit');
+      i += digit * w;
+      if (i > 0x7fffffff) throw new RangeError('punycode overflow');
+      const t = k <= bias ? TMIN : k >= bias + TMAX ? TMAX : k - bias;
+      if (digit < t) break;
+      w *= BASE - t;
+    }
+    const len = output.length + 1;
+    bias = adapt(i - oldi, len, oldi === 0);
+    n += Math.floor(i / len);
+    if (n > 0x10ffff) throw new RangeError('code point out of range');
+    i %= len;
+    output.splice(i++, 0, n);
+  }
+  return String.fromCodePoint(...output);
+}
+
+// ---- src/util/confusables.ts
+// A small, deliberately partial table of characters that look like basic Latin letters.
+// It covers the Cyrillic / Greek letters attackers use most; it is not the full Unicode list.
+const LOOKALIKES = new Map                ([
+  ['\u0430', 'a'], ['\u0435', 'e'], ['\u043E', 'o'], ['\u0440', 'p'], ['\u0441', 'c'],
+  ['\u0445', 'x'], ['\u0443', 'y'], ['\u0456', 'i'], ['\u0458', 'j'], ['\u0455', 's'],
+  ['\u04CF', 'l'], ['\u0501', 'd'], ['\u051B', 'q'], ['\u051D', 'w'], ['\u04BB', 'h'],
+  ['\u043A', 'k'], ['\u0475', 'v'],
+  ['\u03BF', 'o'], ['\u03BD', 'v'], ['\u03B1', 'a'], ['\u03C1', 'p'], ['\u03B9', 'i'],
+  ['\u0131', 'i'], ['\u0261', 'g'], ['\u217C', 'l'], ['\u2170', 'i'],
+]);
+
+/**
+ * Reduces a name to a rough "what it looks like" form so that paypa1, PayPaI,
+ * and a Cyrillic-letter paypal all collapse to the same string as paypal.
+ */
+function skeleton(text        )         {
+  let out = '';
+  for (const ch of text.normalize('NFKC').toLowerCase()) out += LOOKALIKES.get(ch) ?? ch;
+  out = out.replace(/rn/g, 'm').replace(/vv/g, 'w').replace(/cl/g, 'd');
+  return out.replace(/[1il|]/g, 'l').replace(/0/g, 'o').replace(/3/g, 'e').replace(/5/g, 's');
+}
+
+function scriptOf(cp        )         {
+  if ((cp >= 0x41 && cp <= 0x5a) || (cp >= 0x61 && cp <= 0x7a) || (cp >= 0xc0 && cp <= 0x24f) || (cp >= 0x1e00 && cp <= 0x1eff)) return 'Latin';
+  if (cp >= 0x370 && cp <= 0x3ff) return 'Greek';
+  if (cp >= 0x400 && cp <= 0x52f) return 'Cyrillic';
+  if (cp >= 0x530 && cp <= 0x58f) return 'Armenian';
+  if (cp >= 0x590 && cp <= 0x5ff) return 'Hebrew';
+  if ((cp >= 0x600 && cp <= 0x6ff) || (cp >= 0x750 && cp <= 0x77f) || (cp >= 0xfb50 && cp <= 0xfdff) || (cp >= 0xfe70 && cp <= 0xfeff)) return 'Arabic';
+  if (cp >= 0x4e00 && cp <= 0x9fff) return 'Han';
+  if (cp >= 0x3040 && cp <= 0x30ff) return 'Kana';
+  return 'Other';
+}
+
+function scriptsIn(text        )              {
+  const found = new Set        ();
+  for (const ch of text) {
+    if (!/\p{L}/u.test(ch)) continue;
+    found.add(scriptOf(ch.codePointAt(0)          ));
+  }
+  return found;
+}
+
+// ---- src/util/domain.ts
+
+
+// Without the full Public Suffix List we recognise only common two-part suffixes.
+const TWO_PART_SUFFIXES = new Set([
+  'co.uk', 'org.uk', 'gov.uk', 'ac.uk', 'com.au', 'net.au', 'org.au', 'co.nz', 'co.jp',
+  'co.in', 'co.za', 'co.kr', 'co.il', 'co.ae', 'com.br', 'com.mx', 'com.ar', 'com.tr',
+  'com.sg', 'com.hk', 'com.cn', 'com.my', 'com.pk', 'com.ng', 'com.eg', 'com.sa',
+  'net.sa', 'org.sa', 'gov.sa', 'edu.sa', 'med.sa',
+]);
+
+const FREEMAIL = new Set([
+  'gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com',
+  'yahoo.com', 'ymail.com', 'icloud.com', 'me.com', 'proton.me', 'protonmail.com',
+  'aol.com', 'gmx.com', 'mail.com', 'yandex.com', 'zoho.com',
+]);
+
+function registrable(domain        )         {
+  const labels = domain.toLowerCase().replace(/\.$/, '').split('.').filter(Boolean);
+  if (labels.length <= 2) return labels.join('.');
+  const lastTwo = labels.slice(-2).join('.');
+  return TWO_PART_SUFFIXES.has(lastTwo) ? labels.slice(-3).join('.') : lastTwo;
+}
+
+/** Relaxed DMARC-style alignment: both names share the same registrable domain. */
+function domainsAligned(a        , b        )          {
+  if (!a || !b) return false;
+  return registrable(a) === registrable(b);
+}
+
+function isFreemail(domain        )          {
+  return FREEMAIL.has(registrable(domain));
+}
+
+function looksLikeIp(host        )          {
+  return /^[0-9.]+$/.test(host) || host.includes(':');
+}
+
+function levenshtein(a        , b        )         {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+    }
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/** Shows what an internationalised domain really spells. `failed` means a label was malformed. */
+function toUnicodeDomain(domain        )                                       {
+  let failed = false;
+  const labels = domain.split('.').map((label) => {
+    if (!label.toLowerCase().startsWith('xn--')) return label;
+    try {
+      return punycodeDecode(label.slice(4).toLowerCase());
+    } catch {
+      failed = true;
+      return label;
+    }
+  });
+  return { unicode: labels.join('.'), failed };
+}
+
+// ---- src/data/brands.ts
+                        
+               
+                                                               
+                
+                                                                
+                    
+                                                                                  
+                     
+ 
+
+// Examples only. Extend this list for the brands that matter to your readers.
+const BRANDS          = [
+  { name: 'PayPal', label: 'paypal', domains: ['paypal.com', 'paypal.me'] },
+  { name: 'Google', label: 'google', domains: ['google.com', 'gmail.com', 'googlemail.com', 'youtube.com'] },
+  { name: 'Microsoft', label: 'microsoft', domains: ['microsoft.com', 'outlook.com', 'office.com', 'live.com', 'microsoftonline.com', 'office365.com'] },
+  { name: 'Apple', label: 'apple', domains: ['apple.com', 'icloud.com'] },
+  { name: 'Amazon', label: 'amazon', domains: ['amazon.com', 'amazon.co.uk', 'amazon.de', 'amazon.fr', 'amazon.it', 'amazon.es', 'amazon.ca', 'amazon.in', 'amazon.sa', 'amazon.ae', 'amazon.eg', 'amazon.com.au'] },
+  { name: 'Facebook', label: 'facebook', domains: ['facebook.com', 'facebookmail.com', 'fb.com', 'meta.com'] },
+  { name: 'Instagram', label: 'instagram', domains: ['instagram.com'] },
+  { name: 'WhatsApp', label: 'whatsapp', domains: ['whatsapp.com'] },
+  { name: 'Netflix', label: 'netflix', domains: ['netflix.com'] },
+  { name: 'LinkedIn', label: 'linkedin', domains: ['linkedin.com'] },
+  { name: 'Dropbox', label: 'dropbox', domains: ['dropbox.com'] },
+  { name: 'DocuSign', label: 'docusign', domains: ['docusign.com', 'docusign.net'] },
+  { name: 'GitHub', label: 'github', domains: ['github.com'] },
+  { name: 'Binance', label: 'binance', domains: ['binance.com'] },
+  { name: 'Coinbase', label: 'coinbase', domains: ['coinbase.com'] },
+  { name: 'Telegram', label: 'telegram', domains: ['telegram.org', 't.me'] },
+  { name: 'DHL', label: 'dhl', domains: ['dhl.com', 'dhl.de'] },
+  { name: 'FedEx', label: 'fedex', domains: ['fedex.com'] },
+  { name: 'UPS', label: 'ups', domains: ['ups.com'] },
+  { name: 'Aramex', label: 'aramex', domains: ['aramex.com'] },
+  { name: 'Noon', label: 'noon', domains: ['noon.com'] },
+  { name: 'Careem', label: 'careem', domains: ['careem.com'] },
+  { name: 'stc', label: 'stc', domains: ['stc.com.sa'] },
+  { name: 'Al Rajhi Bank', label: 'alrajhibank', domains: ['alrajhibank.com.sa'], aliases: ['al rajhi', 'alrajhi', 'alrajhibank', 'الراجحي'] },
+  { name: 'Saudi National Bank', label: 'snb', domains: ['snb.com.sa'] },
+  { name: 'Riyad Bank', label: 'riyadbank', domains: ['riyadbank.com'], aliases: ['riyad bank', 'riyadbank'] },
+  { name: 'Alinma Bank', label: 'alinma', domains: ['alinma.com'] },
+  { name: 'Absher', label: 'absher', domains: ['absher.sa'], aliases: ['absher', 'أبشر'] },
+  { name: 'Saudi Post (SPL)', label: 'splonline', domains: ['splonline.com.sa'], aliases: ['splonline', 'saudi post'] },
+];
+
+// ---- src/parse/headers.ts
+                                                              
+
+const MAX_INPUT_CHARS = 200_000;
+
+/**
+ * Splits raw text into header fields. Stops at the first blank line, so pasting a
+ * whole message is fine: the body is ignored. Folded (multi-line) values are joined.
+ */
+function parseHeaders(input        )                {
+  let text = input;
+  let truncated = false;
+  if (text.length > MAX_INPUT_CHARS) {
+    text = text.slice(0, MAX_INPUT_CHARS);
+    truncated = true;
+  }
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  const fields                = [];
+  let malformedLines = 0;
+  let current                     = null;
+  let i = 0;
+
+  while (i < lines.length && lines[i].trim() === '') i++;
+  if (i < lines.length && /^From \S/.test(lines[i])) i++; // mbox envelope line
+
+  for (; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.trim() === '') {
+      if (fields.length > 0) break; // end of headers
+      continue;
+    }
+    if (line[0] === ' ' || line[0] === '\t') {
+      if (current) current.value = (current.value + ' ' + line.trim()).trim();
+      else malformedLines++;
+      continue;
+    }
+    const match = /^([\x21-\x39\x3B-\x7E]+):[ \t]*(.*)$/.exec(line);
+    if (!match) {
+      malformedLines++;
+      current = null;
+      continue;
+    }
+    current = { name: match[1], value: match[2].trim(), line: i + 1 };
+    fields.push(current);
+  }
+  return { fields, malformedLines, truncated };
+}
+
+function getAll(headers               , name        )                {
+  const wanted = name.toLowerCase();
+  return headers.fields.filter((f) => f.name.toLowerCase() === wanted);
+}
+
+function getFirst(headers               , name        )                          {
+  const wanted = name.toLowerCase();
+  return headers.fields.find((f) => f.name.toLowerCase() === wanted);
+}
+
+// ---- src/parse/mime.ts
+// RFC 2047 "encoded words": =?UTF-8?B?...?= and =?UTF-8?Q?...?=
+const ENCODED_WORD = /=\?([A-Za-z0-9_-]{1,40})(?:\*[A-Za-z0-9-]{1,20})?\?([BbQq])\?([^?\s]{0,2000})\?=/g;
+
+function base64ToBytes(text        )             {
+  const padded = text + '='.repeat((4 - (text.length % 4)) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function quotedPrintableToBytes(text        )             {
+  const bytes           = [];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '_') {
+      bytes.push(0x20);
+    } else if (ch === '=') {
+      const hex = text.slice(i + 1, i + 3);
+      if (!/^[0-9A-Fa-f]{2}$/.test(hex)) throw new Error('bad quoted-printable');
+      bytes.push(parseInt(hex, 16));
+      i += 2;
+    } else {
+      bytes.push(ch.charCodeAt(0) & 0xff);
+    }
+  }
+  return Uint8Array.from(bytes);
+}
+
+function decodeBytes(bytes            , charset        )         {
+  try {
+    return new TextDecoder(charset.toLowerCase()).decode(bytes);
+  } catch {
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+}
+
+function decodeMimeWords(value        )         {
+  // Whitespace between two adjacent encoded words is not part of the text.
+  const joined = value.replace(/(\?=)[ \t]+(?==\?)/g, '$1');
+  return joined.replace(ENCODED_WORD, (whole        , charset        , enc        , text        ) => {
+    try {
+      const bytes = enc.toUpperCase() === 'B' ? base64ToBytes(text) : quotedPrintableToBytes(text);
+      return decodeBytes(bytes, charset);
+    } catch {
+      return whole;
+    }
+  });
+}
+
+// ---- src/parse/address.ts
+                                           
+
+
+const ADDRESS_MAX_VALUE = 2000;
+const MAX_DOMAIN = 255;
+
+/** Splits "a@x.test, B <b@y.test>" on commas that are not inside quotes, <> or (). */
+function splitAddressList(value        )           {
+  const parts           = [];
+  let cur = '';
+  let quoted = false;
+  let angle = 0;
+  let paren = 0;
+  for (const ch of value.slice(0, ADDRESS_MAX_VALUE)) {
+    if (ch === '"' && paren === 0) quoted = !quoted;
+    else if (!quoted && ch === '(') paren++;
+    else if (!quoted && ch === ')' && paren > 0) paren--;
+    else if (!quoted && paren === 0 && ch === '<') angle++;
+    else if (!quoted && paren === 0 && ch === '>' && angle > 0) angle--;
+    if ((ch === ',' || ch === ';') && !quoted && angle === 0 && paren === 0) {
+      if (cur.trim()) parts.push(cur.trim());
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur.trim()) parts.push(cur.trim());
+  return parts;
+}
+
+function cleanDisplay(raw        )         {
+  let name = raw.trim();
+  if (name.length >= 2 && name.startsWith('"') && name.endsWith('"')) {
+    name = name.slice(1, -1).replace(/\\(.)/g, '$1');
+  }
+  return decodeMimeWords(name).trim();
+}
+
+function parseAddress(value        )                 {
+  const text = value.slice(0, ADDRESS_MAX_VALUE).trim();
+  if (!text) return null;
+  let email = '';
+  let display = '';
+
+  // The real address is the LAST <...> pair: a quoted display name may contain "<fake@x>".
+  const lt = text.lastIndexOf('<');
+  const gt = lt === -1 ? -1 : text.indexOf('>', lt);
+  if (lt !== -1 && gt !== -1) {
+    email = text.slice(lt + 1, gt).trim();
+    display = cleanDisplay(text.slice(0, lt));
+  } else {
+    const bare = /[^\s<>(),;:"]{1,64}@[^\s<>(),;:"]{1,256}/.exec(text.replace(/\([^)]{0,200}\)/g, ' '));
+    if (!bare) return null;
+    email = bare[0];
+  }
+
+  const at = email.lastIndexOf('@');
+  if (at < 1) return null;
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1).toLowerCase().replace(/\.$/, '');
+  if (!domain || domain.length > MAX_DOMAIN || /\s/.test(domain)) return null;
+  return { display, email: `${local}@${domain}`, local, domain };
+}
+
+// ---- src/parse/received.ts
+                                                      
+
+
+
+const MAX_HOPS = 100;
+const KEYWORDS = new Set(['from', 'by', 'with', 'id', 'for', 'via']);
+
+/** Splits on whitespace that is not inside parentheses. Linear time, bounded nesting. */
+function tokenize(text        )           {
+  const tokens           = [];
+  let cur = '';
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '(') {
+      depth = Math.min(depth + 1, 8);
+      cur += ch;
+    } else if (ch === ')') {
+      if (depth > 0) depth--;
+      cur += ch;
+    } else if (depth === 0 && (ch === ' ' || ch === '\t')) {
+      if (cur) tokens.push(cur);
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur) tokens.push(cur);
+  return tokens;
+}
+
+function parseDateValue(value        )                {
+  const cleaned = value.replace(/\([^)]{0,200}\)/g, ' ').trim();
+  if (!cleaned) return null;
+  const t = Date.parse(cleaned);
+  return Number.isNaN(t) ? null : t;
+}
+
+function hostRegistrable(host        )         {
+  const h = host.toLowerCase().replace(/\.$/, '');
+  if (!h.includes('.') || looksLikeIp(h)) return '';
+  return registrable(h);
+}
+
+function parseReceivedValue(value        )      {
+  const semi = value.lastIndexOf(';');
+  const main = semi === -1 ? value : value.slice(0, semi);
+  const time = semi === -1 ? null : parseDateValue(value.slice(semi + 1));
+
+  const clauses = new Map                  ();
+  let key = '';
+  for (const token of tokenize(main.slice(0, 4000))) {
+    const lower = token.toLowerCase();
+    if (KEYWORDS.has(lower) && !clauses.has(lower)) {
+      key = lower;
+      clauses.set(key, []);
+    } else if (key) {
+      (clauses.get(key)            ).push(token);
+    }
+  }
+
+  const fromTokens = clauses.get('from') ?? [];
+  const fromText = fromTokens.join(' ');
+  const helo = fromTokens.find((t) => !t.startsWith('(')) ?? '';
+  const ipMatch = /\[(?:IPv6:)?([0-9A-Fa-f:.]{2,45})\]/.exec(fromText);
+  let rdns = '';
+  const open = fromText.indexOf('(');
+  const close = open === -1 ? -1 : fromText.indexOf(')', open);
+  if (open !== -1 && close !== -1) {
+    const first = fromText.slice(open + 1, close).trim().split(/\s+/)[0] ?? '';
+    if (first && !first.startsWith('[') && !first.includes('=')) rdns = first.replace(/[,;]$/, '');
+  }
+
+  return {
+    raw: value,
+    from: helo.replace(/^\[|\]$/g, ''),
+    rdns,
+    ip: ipMatch ? ipMatch[1] : '',
+    by: (clauses.get('by') ?? [])[0] ?? '',
+    protocol: (clauses.get('with') ?? [])[0] ?? '',
+    time,
+    delayMs: null,
+    trusted: false,
+  };
+}
+
+/**
+ * Returns the hops in chronological order (sender side first, your inbox last).
+ * `providerDomain` is the registrable domain of the system that wrote
+ * Authentication-Results; steps recorded by that provider are marked trusted.
+ */
+function parseReceivedChain(headers               , providerDomain = '')        {
+  const hops = getAll(headers, 'received')
+    .slice(0, MAX_HOPS)
+    .map((f) => parseReceivedValue(f.value))
+    .reverse();
+
+  let previous                = null;
+  for (const hop of hops) {
+    if (hop.time !== null) {
+      if (previous !== null) hop.delayMs = hop.time - previous;
+      previous = hop.time;
+    }
+  }
+
+  if (hops.length > 0) {
+    hops[hops.length - 1].trusted = true; // the newest step is always written by your provider
+    for (let i = hops.length - 2; i >= 0; i--) {
+      if (providerDomain && hostRegistrable(hops[i].by) === providerDomain) hops[i].trusted = true;
+      else break;
+    }
+  }
+  return hops;
+}
+
+// ---- src/parse/auth.ts
+                                                                                
+
+
+const AUTH_MAX_VALUE = 8000;
+const MAX_SEGMENTS = 40;
+
+function emptyProps()                         {
+  return Object.create(null)                          ;
+}
+
+/**
+ * Reads the TOPMOST Authentication-Results header only: that one was added by the
+ * receiving system. Lower ones may have been inserted by the sender.
+ */
+function parseAuth(headers               )              {
+  const ar = getFirst(headers, 'authentication-results');
+  if (ar) {
+    const parts = ar.value.slice(0, AUTH_MAX_VALUE).split(';');
+    const serverId = (parts[0] ?? '').trim().split(/\s+/)[0] ?? '';
+    const results                     = [];
+    for (const rawSegment of parts.slice(1, MAX_SEGMENTS)) {
+      const segment = rawSegment.replace(/\([^)]{0,500}\)/g, ' ');
+      const head = /^\s*([a-z][a-z0-9-]*)\s*=\s*([a-z]+)/i.exec(segment);
+      if (!head) continue;
+      const props = emptyProps();
+      const rest = segment.slice(head[0].length);
+      for (const p of rest.matchAll(/(?<![A-Za-z0-9.-])([a-z][a-z0-9]*(?:\.[a-z0-9-]+)?)=([^\s;()]+)/gi)) {
+        props[p[1].toLowerCase()] = p[2];
+      }
+      results.push({ method: head[1].toLowerCase(), result: head[2].toLowerCase(), props });
+    }
+    return { source: 'authentication-results', serverId, results };
+  }
+
+  const rs = getFirst(headers, 'received-spf');
+  if (rs) {
+    const head = /^\s*([a-z]+)/i.exec(rs.value);
+    if (head) {
+      const props = emptyProps();
+      const envelope = /envelope-from=([^\s;]+)/i.exec(rs.value);
+      if (envelope) props['smtp.mailfrom'] = envelope[1].replace(/^["<]+|[>"]+$/g, '');
+      return {
+        source: 'received-spf',
+        serverId: '',
+        results: [{ method: 'spf', result: head[1].toLowerCase(), props }],
+      };
+    }
+  }
+  return { source: 'none', serverId: '', results: [] };
+}
+
+function authResult(auth             , method        )                     {
+  return auth.results.filter((r) => r.method === method);
+}
+
+function hasPass(auth             , method        )          {
+  return authResult(auth, method).some((r) => r.result === 'pass');
+}
+
+// ---- src/checks/auth.ts
+                                                                      
+
+
+
+function domainOfValue(value                    )         {
+  if (!value) return '';
+  const v = value.replace(/^["<]+|[>"]+$/g, '');
+  const at = v.lastIndexOf('@');
+  return (at === -1 ? v : v.slice(at + 1)).toLowerCase();
+}
+
+function describeResult(r                  )         {
+  const keys = ['smtp.mailfrom', 'smtp.helo', 'header.d', 'header.i', 'header.from', 'smtp.remote-ip'];
+  const extra = keys.filter((k) => r.props[k]).map((k) => `${k}=${r.props[k]}`);
+  return [`${r.method}=${r.result}`, ...extra].join('  ');
+}
+
+function spfFinding(r                  , fromDomain        , dmarcPass         , source        )          {
+  const evidence = [source, describeResult(r)];
+  switch (r.result) {
+    case 'pass': {
+      const used = domainOfValue(r.props['smtp.mailfrom'] ?? r.props['smtp.helo']);
+      if (used && fromDomain && !dmarcPass && !domainsAligned(used, fromDomain)) {
+        return {
+          id: 'spf-misaligned', severity: 'warning',
+          title: 'SPF passed, but for a different domain than the sender shown',
+          why: `The sending server is approved by ${used}, not by ${fromDomain}. Anyone can pass SPF for a domain they own, so this does not show that the visible sender is genuine.`,
+          evidence,
+        };
+      }
+      return {
+        id: 'spf-pass', severity: 'ok', title: 'SPF passed',
+        why: 'The server that delivered this message is on the approved list of the domain it was sent from.',
+        evidence,
+      };
+    }
+    case 'fail':
+    case 'hardfail':
+      return {
+        id: 'spf-fail', severity: 'danger', title: 'SPF failed: the sending server is not approved',
+        why: 'The server that delivered this message is not on the sender domain\'s list of approved servers. Forged mail often fails this check.',
+        evidence,
+      };
+    case 'softfail':
+      return {
+        id: 'spf-softfail', severity: 'warning', title: 'SPF soft-failed: the sending server is probably not approved',
+        why: 'The sender domain says this server is probably not allowed to send for it, but did not demand rejection.',
+        evidence,
+      };
+    case 'neutral':
+    case 'none':
+      return {
+        id: 'spf-none', severity: 'info', title: 'SPF gave no verdict',
+        why: 'The sender domain does not publish an approved-server list, or does not say whether this server is on it.',
+        evidence,
+      };
+    default:
+      return {
+        id: 'spf-error', severity: 'info', title: 'SPF could not be checked',
+        why: 'The check hit a temporary or permanent error, so it says nothing either way.',
+        evidence,
+      };
+  }
+}
+
+function dkimFinding(r                  , fromDomain        , dmarcPass         , source        )          {
+  const evidence = [source, describeResult(r)];
+  switch (r.result) {
+    case 'pass': {
+      const used = domainOfValue(r.props['header.d'] ?? r.props['header.i']);
+      if (used && fromDomain && !dmarcPass && !domainsAligned(used, fromDomain)) {
+        return {
+          id: 'dkim-misaligned', severity: 'warning',
+          title: 'DKIM passed, but the signature belongs to a different domain than the sender shown',
+          why: `The message is signed by ${used}, not by ${fromDomain}. A valid signature from an unrelated domain does not vouch for the visible sender.`,
+          evidence,
+        };
+      }
+      return {
+        id: 'dkim-pass', severity: 'ok', title: 'DKIM signature is valid',
+        why: 'The message carries a digital signature that matches its content and the signing domain\'s published key.',
+        evidence,
+      };
+    }
+    case 'fail':
+    case 'policy':
+      return {
+        id: 'dkim-fail', severity: 'danger', title: 'DKIM signature is invalid',
+        why: 'The signature does not match the message or the signing domain\'s key. The message may have been altered in transit, or the signature may be fake.',
+        evidence,
+      };
+    case 'none':
+    case 'neutral':
+      return {
+        id: 'dkim-none', severity: 'info', title: 'The message is not signed with DKIM',
+        why: 'Many legitimate senders sign their mail, but plenty of small ones do not, so this alone proves little.',
+        evidence,
+      };
+    default:
+      return {
+        id: 'dkim-error', severity: 'info', title: 'DKIM could not be checked',
+        why: 'The check hit an error, so it says nothing either way.',
+        evidence,
+      };
+  }
+}
+
+function dmarcFinding(r                  , source        )          {
+  const evidence = [source, describeResult(r)];
+  switch (r.result) {
+    case 'pass':
+      return {
+        id: 'dmarc-pass', severity: 'ok', title: 'DMARC passed',
+        why: 'The visible From domain lined up with a passing SPF or DKIM check, so the sender is very likely who they claim to be.',
+        evidence,
+      };
+    case 'fail':
+      return {
+        id: 'dmarc-fail', severity: 'danger', title: 'DMARC failed: the From address could not be verified',
+        why: 'Neither SPF nor DKIM verified the domain shown in the From line. This is the classic sign of a spoofed sender.',
+        evidence,
+      };
+    default:
+      return {
+        id: 'dmarc-none', severity: 'info', title: 'No DMARC verdict',
+        why: 'The sender domain does not publish a DMARC policy, or the check could not run.',
+        evidence,
+      };
+  }
+}
+
+function checkAuth(ctx         )            {
+  const { auth } = ctx;
+  if (auth.source === 'none') {
+    return [{
+      id: 'auth-missing', severity: 'info', title: 'No sender-verification results found',
+      why: 'Mail providers normally record whether SPF, DKIM and DMARC passed. Without those lines this tool cannot tell whether the sender was verified. Make sure you copied the complete headers.',
+      evidence: ['No Authentication-Results or Received-SPF header was found.'],
+    }];
+  }
+  const fromDomain = ctx.from?.domain ?? '';
+  const dmarcPass = hasPass(auth, 'dmarc');
+  const source = auth.source === 'authentication-results'
+    ? `Recorded by ${auth.serverId || 'the receiving server'}`
+    : 'From the Received-SPF header';
+
+  const out            = [];
+  for (const r of authResult(auth, 'spf')) out.push(spfFinding(r, fromDomain, dmarcPass, source));
+  for (const r of authResult(auth, 'dkim')) out.push(dkimFinding(r, fromDomain, dmarcPass, source));
+  const dmarc = authResult(auth, 'dmarc');
+  for (const r of dmarc) out.push(dmarcFinding(r, source));
+  if (dmarc.length === 0 && auth.source === 'authentication-results') {
+    out.push({
+      id: 'dmarc-missing', severity: 'info', title: 'No DMARC verdict',
+      why: 'The receiving server did not report a DMARC result for this message.',
+      evidence: [source],
+    });
+  }
+  return out;
+}
+
+// ---- src/checks/addresses.ts
+                                                             
+
+
+
+
+
+function checkAddresses(ctx         )            {
+  const out            = [];
+  const from = ctx.from;
+  if (!from) return out;
+
+  // A display name that contains a different e-mail address, e.g. "support@bank.test" <x@evil.test>
+  const shown = from.display.slice(0, 300).match(/[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,120}\.[A-Za-z]{2,24}/g) ?? [];
+  const lying = shown.filter((a) => !domainsAligned(a.slice(a.lastIndexOf('@') + 1), from.domain));
+  if (lying.length > 0) {
+    out.push({
+      id: 'display-name-address', severity: 'danger',
+      title: 'The display name shows a different e-mail address than the real sender',
+      why: 'Many mail apps show only the display name. Here the name itself looks like an address from another domain, which is a deliberate trick.',
+      evidence: [`Display name: ${from.display}`, `Actual address: ${from.email}`],
+    });
+  }
+
+  const replyTo = getFirst(ctx.headers, 'reply-to');
+  if (replyTo) {
+    const addresses = splitAddressList(replyTo.value)
+      .map((v) => parseAddress(v))
+      .filter((a)               => a !== null);
+    const different = addresses.filter((a) => !domainsAligned(a.domain, from.domain));
+    if (different.length > 0) {
+      const personal = different.some((a) => isFreemail(a.domain)) && !isFreemail(from.domain);
+      out.push({
+        id: 'reply-to-mismatch', severity: 'warning',
+        title: 'Replies would go to a different domain than the sender',
+        why: 'If you answer this message, your reply goes to the Reply-To address, not the From address. Phishers use this so the From line looks official while replies reach them.'
+          + (personal ? ' The reply address is a free personal mailbox, which an organisation would not normally use.' : ''),
+        evidence: [`From: ${from.email}`, ...different.map((a) => `Reply-To: ${a.email}`)],
+      });
+    }
+  }
+
+  const returnPath = getFirst(ctx.headers, 'return-path');
+  if (returnPath) {
+    const address = parseAddress(returnPath.value); // "<>" (an empty bounce path) gives null
+    if (address && !domainsAligned(address.domain, from.domain)) {
+      const verified = hasPass(ctx.auth, 'dmarc');
+      out.push({
+        id: 'return-path-mismatch', severity: verified ? 'info' : 'warning',
+        title: 'Bounce address is on a different domain than the sender',
+        why: verified
+          ? 'Common with newsletters and mail services. The sender\'s DMARC check passed, so this is probably routine.'
+          : 'Common with mail services, but forged mail looks like this too, and no DMARC pass confirms the sender.',
+        evidence: [`From: ${from.email}`, `Return-Path: ${address.email}`],
+      });
+    }
+  }
+  return out;
+}
+
+// ---- src/checks/lookalike.ts
+                                                             
+
+                                               
+
+
+
+
+
+const MAX_LABEL = 100;
+
+function ownedByBrand(domain        )                    {
+  const reg = registrable(domain);
+  return BRANDS.find((b) => b.domains.includes(reg));
+}
+
+function mixesLookalikeScripts(label        )          {
+  const s = scriptsIn(label);
+  if (s.size < 2) return false;
+  const lookalike = s.has('Cyrillic') || s.has('Greek') || s.has('Armenian');
+  return (s.has('Latin') && lookalike) || (s.has('Cyrillic') && s.has('Greek'));
+}
+
+function brandFinding(brand       , role        , nameLabel        , tokens          , evidence          )                 {
+  const real = `${brand.name}'s real domain: ${brand.domains[0]}`;
+  const sk = skeleton(brand.label);
+  if (nameLabel === brand.label) {
+    return {
+      id: 'brand-other-domain', severity: 'warning',
+      title: `The ${role} domain uses ${brand.name}'s name on a different domain`,
+      why: `This could be a regional site or an imitation. Compare it with the company's official address before trusting it.`,
+      evidence: [...evidence, real],
+    };
+  }
+  if (brand.label.length >= 5 && skeleton(nameLabel) === sk) {
+    return {
+      id: 'lookalike-domain', severity: 'danger',
+      title: `The ${role} domain imitates ${brand.name}`,
+      why: `The name is written with lookalike characters or digits so that it reads as "${brand.label}" at a glance. It is not one of ${brand.name}'s domains. This is a common phishing trick.`,
+      evidence: [...evidence, real],
+    };
+  }
+  if (brand.label.length >= 6 && nameLabel.length >= 5 && levenshtein(nameLabel, brand.label) === 1) {
+    return {
+      id: 'near-miss-domain', severity: 'warning',
+      title: `The ${role} domain is one character away from ${brand.name}`,
+      why: 'Misspelled copies of well-known names are used to catch people who read quickly. Some are innocent coincidences, so check before deciding.',
+      evidence: [...evidence, real],
+    };
+  }
+  for (const token of tokens) {
+    if (token === brand.label) {
+      return {
+        id: 'brand-in-domain', severity: 'warning',
+        title: `The ${role} domain contains the name ${brand.name}, but is not theirs`,
+        why: 'Placing a well-known name inside a different domain makes it look official. The owner is the part right before the final ".com" (or similar), not the words before it.',
+        evidence: [...evidence, real],
+      };
+    }
+    if (brand.label.length >= 5 && token.length >= 5 && skeleton(token) === sk) {
+      return {
+        id: 'lookalike-token', severity: 'danger',
+        title: `The ${role} domain contains a disguised copy of ${brand.name}'s name`,
+        why: `A word inside the domain is spelled with lookalike characters or digits to read as "${brand.label}". It is not one of ${brand.name}'s domains.`,
+        evidence: [...evidence, real],
+      };
+    }
+  }
+  return null;
+}
+
+function assessDomain(role        , domain        )            {
+  if (ownedByBrand(domain)) return [];
+  const out            = [];
+  const { unicode, failed } = toUnicodeDomain(domain);
+  const evidence = [`${role} domain: ${domain}`];
+  if (unicode !== domain) evidence.push(`Spelled out in Unicode: ${unicode}`);
+
+  if (failed) {
+    out.push({
+      id: 'bad-punycode', severity: 'warning', title: `The ${role} domain contains a malformed encoded name`,
+      why: 'Part of the domain starts with "xn--" (the encoding for non-Latin characters) but cannot be decoded. Legitimate domains do not look like this.',
+      evidence,
+    });
+  }
+
+  const labels = unicode.toLowerCase().split('.').map((l) => l.slice(0, MAX_LABEL));
+  if (labels.some(mixesLookalikeScripts)) {
+    out.push({
+      id: 'mixed-script', severity: 'danger',
+      title: `The ${role} domain mixes alphabets that look alike`,
+      why: 'A single word in this domain combines Latin letters with Cyrillic or Greek letters that look identical to them. This is the signature of a "homograph" attack, where a fake domain is indistinguishable by eye.',
+      evidence,
+    });
+  } else if (unicode !== domain && !failed) {
+    out.push({
+      id: 'idn-domain', severity: 'info',
+      title: `The ${role} domain uses non-Latin characters`,
+      why: 'Internationalised domains are legitimate, but they are also used for imitation. The raw header stores them in an "xn--" form.',
+      evidence,
+    });
+  }
+
+  const reg = registrable(unicode.toLowerCase());
+  const nameLabel = (reg.split('.')[0] ?? '').slice(0, MAX_LABEL);
+  const tokens = labels.slice(0, -1).flatMap((l) => l.split('-')).filter((t) => t.length >= 3);
+  let best                 = null;
+  for (const brand of BRANDS) {
+    const f = brandFinding(brand, role, nameLabel, tokens, evidence);
+    if (!f) continue;
+    if (f.severity === 'danger') { best = f; break; }
+    if (!best) best = f;
+  }
+  if (best) out.push(best);
+  return out;
+}
+
+function checkDisplayNameBrand(from         )            {
+  const words = from.display.slice(0, 300).toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const padded = ` ${words.join(' ')} `;
+  const own = registrable(from.domain);
+  for (const brand of BRANDS) {
+    const names = brand.aliases ?? [brand.label];
+    if (names.some((n) => padded.includes(` ${n} `)) && !brand.domains.includes(own)) {
+      return [{
+        id: 'display-name-brand', severity: 'warning',
+        title: `The display name mentions ${brand.name}, but the address is not theirs`,
+        why: 'Anyone can type any name into the display name, and many mail apps show only that. Judge the message by the address, not the name. (A genuine service sending on behalf of a brand can trigger this too.)',
+        evidence: [`Display name: ${from.display}`, `Actual address: ${from.email}`, `${brand.name}'s domains include: ${brand.domains.slice(0, 3).join(', ')}`],
+      }];
+    }
+  }
+  return [];
+}
+
+function checkLookalike(ctx         )            {
+  const from = ctx.from;
+  if (!from) return [];
+  const out            = [];
+  const seen = new Set        ();
+  const assess = (role        , domain        )       => {
+    if (!domain || seen.has(domain)) return;
+    seen.add(domain);
+    out.push(...assessDomain(role, domain));
+  };
+
+  assess('From', from.domain);
+  const replyTo = getFirst(ctx.headers, 'reply-to');
+  if (replyTo) {
+    for (const part of splitAddressList(replyTo.value).slice(0, 5)) {
+      const a = parseAddress(part);
+      if (a) assess('Reply-To', a.domain);
+    }
+  }
+  const returnPath = getFirst(ctx.headers, 'return-path');
+  const rp = returnPath ? parseAddress(returnPath.value) : null;
+  if (rp) assess('Return-Path', rp.domain);
+
+  out.push(...checkDisplayNameBrand(from));
+  return out;
+}
+
+// ---- src/checks/received.ts
+                                                         
+
+
+
+
+
+const BACKWARD_TOLERANCE_MS = 2 * 60 * 1000;
+const LONG_DELAY_MS = 6 * 60 * 60 * 1000;
+const DATE_MISMATCH_MS = 24 * 60 * 60 * 1000;
+const MANY_HOPS = 12;
+
+function describeHop(hop     )         {
+  const who = hop.from || 'unknown server';
+  const where = hop.ip ? ` [${hop.ip}]` : '';
+  return `${who}${where} -> ${hop.by || 'unknown server'} at ${formatTime(hop.time)}`;
+}
+
+function previousTimed(hops       , index        )                  {
+  for (let i = index - 1; i >= 0; i--) if (hops[i].time !== null) return hops[i];
+  return undefined;
+}
+
+function isPrivateIp(ip        )          {
+  return /^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip) || ip === '::1' || /^f[cd]/i.test(ip);
+}
+
+function checkReceived(ctx         )            {
+  const hops = ctx.hops;
+  if (hops.length === 0) {
+    return [{
+      id: 'received-none', severity: 'info', title: 'No route information found',
+      why: 'Messages normally contain "Received" lines that record each server they passed through. Make sure you copied the complete headers.',
+      evidence: ['No Received header was found.'],
+    }];
+  }
+
+  const out            = [];
+
+  const backward           = [];
+  const slow           = [];
+  hops.forEach((hop, i) => {
+    if (hop.delayMs === null) return;
+    const prev = previousTimed(hops, i);
+    if (hop.delayMs < -BACKWARD_TOLERANCE_MS && prev) {
+      backward.push(`${formatDuration(hop.delayMs)} before the previous step: ${describeHop(hop)}`);
+    } else if (hop.delayMs > LONG_DELAY_MS) {
+      slow.push(`${formatDuration(hop.delayMs)} after the previous step: ${describeHop(hop)}`);
+    }
+  });
+  if (backward.length > 0) {
+    out.push({
+      id: 'time-backward', severity: 'warning',
+      title: 'The route timestamps go backwards',
+      why: 'A message cannot arrive anywhere before it was sent. This happens when a server clock is wrong, but also when a "Received" line was written by the sender to fake a longer, more legitimate-looking route.',
+      evidence: backward,
+    });
+  }
+  if (slow.length > 0) {
+    out.push({
+      id: 'long-delay', severity: 'info',
+      title: 'The message was held up for hours at one step',
+      why: 'Delays this long usually mean a queued or retried delivery. They are rarely a problem by themselves.',
+      evidence: slow,
+    });
+  }
+
+  const dateField = getFirst(ctx.headers, 'date');
+  const sentAt = dateField ? parseDateValue(dateField.value) : null;
+  const firstTimed = hops.find((h) => h.time !== null);
+  if (sentAt !== null && firstTimed && firstTimed.time !== null && Math.abs(sentAt - firstTimed.time) > DATE_MISMATCH_MS) {
+    out.push({
+      id: 'date-mismatch', severity: 'warning',
+      title: 'The Date header disagrees with the first server that handled the message',
+      why: 'The Date line is written by the sender and can say anything. The first server\'s own timestamp is a better guide. Spam tools often set old or future dates.',
+      evidence: [`Date header: ${formatTime(sentAt)}`, `First server saw it: ${formatTime(firstTimed.time)}`],
+    });
+  }
+
+  if (hops.length > MANY_HOPS) {
+    out.push({
+      id: 'many-hops', severity: 'info', title: `The message passed through ${hops.length} servers`,
+      why: 'Long chains happen with forwarding and mailing lists, but they also hide where a message started.',
+      evidence: [`${hops.length} Received lines`],
+    });
+  }
+
+  const entry = hops.find((h) => h.trusted);
+  if (entry && (entry.ip || entry.from)) {
+    const evidence = [
+      `Recorded by: ${entry.by || 'your mail provider'}`,
+      `Connecting IP address: ${entry.ip || 'not recorded'}`,
+      `Reverse DNS: ${entry.rdns && entry.rdns.toLowerCase() !== 'unknown' ? entry.rdns : 'none'}`,
+      `Name it gave itself (HELO): ${entry.from || 'not recorded'}`,
+    ];
+    let note = 'These details were written by your own mail provider, so the IP address is reliable. The HELO name is only a claim by the sending server.';
+    if (entry.ip && isPrivateIp(entry.ip)) {
+      note += ' This address is private, so it is an internal hand-off rather than the original sender.';
+    } else if (entry.ip && (!entry.rdns || entry.rdns.toLowerCase() === 'unknown')) {
+      note += ' The sending machine has no reverse-DNS name. Many legitimate mail servers have one, while throwaway or compromised machines often do not.';
+    } else if (entry.rdns && entry.from && looksLikeIp(entry.from) === false
+      && hostRegistrable(entry.rdns) !== '' && hostRegistrable(entry.from) !== ''
+      && hostRegistrable(entry.rdns) !== hostRegistrable(entry.from)) {
+      note += ' The HELO name and the reverse-DNS name belong to different domains.';
+    }
+    out.push({ id: 'entry-point', severity: 'info', title: 'Where the message entered your mail provider', why: note, evidence });
+  }
+  return out;
+}
+
+// ---- src/checks/structure.ts
+                                                    
+
+
+const SINGLE_VALUED = ['to', 'cc', 'subject', 'date', 'message-id', 'reply-to', 'sender'];
+
+function checkStructure(ctx         )            {
+  const out            = [];
+  const froms = getAll(ctx.headers, 'from');
+
+  if (froms.length === 0) {
+    out.push({
+      id: 'missing-from', severity: 'warning', title: 'There is no From header',
+      why: 'Every real message names its sender. If you copied only part of the headers, paste the full set.',
+      evidence: ['No From header was found.'],
+    });
+  } else if (froms.length > 1) {
+    out.push({
+      id: 'duplicate-from', severity: 'danger', title: 'The message has more than one From header',
+      why: 'Mail apps and security filters can pick different ones, so a forged name may be shown to you while the real one is checked. Legitimate mail has exactly one.',
+      evidence: froms.map((f) => `From: ${f.value}`),
+    });
+  } else if (ctx.from === null) {
+    out.push({
+      id: 'unreadable-from', severity: 'warning', title: 'The From header does not contain a readable address',
+      why: 'The sender could not be identified, so the sender-based checks were skipped.',
+      evidence: [`From: ${froms[0].value}`],
+    });
+  }
+
+  const duplicated = SINGLE_VALUED.filter((name) => getAll(ctx.headers, name).length > 1);
+  if (duplicated.length > 0) {
+    out.push({
+      id: 'duplicate-headers', severity: 'warning', title: 'Some headers appear more than once',
+      why: 'These headers should occur only once. Duplicates can be a way to show one value to people and another to filters.',
+      evidence: duplicated.map((n) => `${n} appears ${getAll(ctx.headers, n).length} times`),
+    });
+  }
+
+  const missing = ['date', 'message-id'].filter((name) => !getFirst(ctx.headers, name));
+  if (missing.length > 0) {
+    out.push({
+      id: 'missing-headers', severity: 'warning', title: 'Standard headers are missing',
+      why: 'Mail software almost always adds these. Bulk-mailing tools that skip them are common among spammers, though some headers are removed when you export a message.',
+      evidence: missing.map((n) => `Missing: ${n}`),
+    });
+  }
+
+  if (ctx.headers.malformedLines > 0) {
+    out.push({
+      id: 'malformed-lines', severity: 'info', title: 'Some lines were not valid headers',
+      why: 'They were ignored. If you pasted extra text above the headers, that is normal.',
+      evidence: [`${ctx.headers.malformedLines} line(s) skipped`],
+    });
+  }
+  if (ctx.headers.truncated) {
+    out.push({
+      id: 'input-truncated', severity: 'info', title: 'The pasted text was very long and was cut',
+      why: 'Only the first part was analysed. Headers are normally a few kilobytes, so you probably pasted the message body too.',
+      evidence: ['Input limited to 200,000 characters'],
+    });
+  }
+  return out;
+}
+
+// ---- src/analyze.ts
+                                                                               
+
+
+
+
+
+
+
+
+
+
+
+const SEVERITY_RANK                           = { danger: 0, warning: 1, info: 2, ok: 3 };
+
+function analyze(input        )           {
+  const headers = parseHeaders(input);
+  const fromField = getFirst(headers, 'from');
+  const from = fromField ? parseAddress(fromField.value) : null;
+  const auth = parseAuth(headers);
+  const hops = parseReceivedChain(headers, hostRegistrable(auth.serverId));
+  const ctx          = { headers, from, hops, auth };
+
+  let findings           ;
+  if (headers.fields.length === 0) {
+    findings = [{
+      id: 'no-headers', severity: 'warning', title: 'This does not look like e-mail headers',
+      why: 'Headers are lines such as "From: ...", "Received: ..." and "Subject: ...". In Gmail, open the message, choose the three-dot menu, then "Show original".',
+      evidence: ['No "Name: value" lines were found.'],
+    }];
+  } else {
+    findings = [
+      ...checkStructure(ctx),
+      ...checkAuth(ctx),
+      ...checkAddresses(ctx),
+      ...checkLookalike(ctx),
+      ...checkReceived(ctx),
+    ];
+  }
+  findings.sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
+
+  const counts         = { danger: 0, warning: 0, info: 0, ok: 0 };
+  for (const f of findings) counts[f.severity]++;
+
+  const dateField = getFirst(headers, 'date');
+  return {
+    headers,
+    from,
+    subject: decodeMimeWords(getFirst(headers, 'subject')?.value ?? ''),
+    date: dateField ? parseDateValue(dateField.value) : null,
+    dateRaw: dateField ? dateField.value : '',
+    hops,
+    auth,
+    findings,
+    counts,
+  };
+}
+
+// ---- src/ui.ts
+
+
+
+                                                                   
+
+// Injected by scripts/build.mjs from the files in samples/.
+                                              
+
+                                                      
+
+// Every piece of header data reaches the page as a text node. innerHTML is never used,
+// so markup or script placed inside a header can only ever be displayed, not run.
+function el(tag        , attrs                         = {}, ...kids         )              {
+  const node = document.createElement(tag);
+  for (const [name, value] of Object.entries(attrs)) node.setAttribute(name, value);
+  for (const kid of kids) if (kid !== null && kid !== false && kid !== undefined) node.append(kid);
+  return node;
+}
+
+const GROUPS                            = [
+  ['danger', 'Serious problems'],
+  ['warning', 'Worth a closer look'],
+  ['info', 'Good to know'],
+];
+
+function verdictFor(a          )                                    {
+  const { danger, warning } = a.counts;
+  if (danger > 0) {
+    const what = danger === 1 ? 'One serious problem' : `${danger} serious problems`;
+    return { level: 'danger', text: `${what} found. Do not click links or reply until you have checked with the sender another way.` };
+  }
+  if (warning > 0) {
+    return { level: 'warning', text: 'Nothing is clearly forged, but some details deserve a closer look before you trust this message.' };
+  }
+  return { level: 'ok', text: 'No red flags in the headers. That does not prove the message is safe: headers say nothing about the links or attachments inside.' };
+}
+
+function fact(label        , ...value         )              {
+  return el('div', { class: 'row' }, el('dt', {}, label), el('dd', { dir: 'auto' }, ...value));
+}
+
+function renderMessage(a          )              {
+  const verdict = verdictFor(a);
+  const sender          = a.from
+    ? [a.from.display ? el('strong', {}, a.from.display + ' ') : null, el('span', { class: 'addr' }, a.from.email)]
+    : ['Not readable'];
+  const sent = a.date !== null ? `${formatTime(a.date)} (as written by the sender)` : a.dateRaw || 'Not present';
+  return el('section', { class: 'block msg' },
+    el('h2', {}, 'Message'),
+    el('dl', { class: 'facts' }, fact('From', ...sender), fact('Subject', a.subject || 'Not present'), fact('Sent', sent)),
+    el('p', { class: `verdict ${verdict.level}` }, verdict.text),
+  );
+}
+
+function renderHop(hop     )              {
+  const flagged = hop.delayMs !== null && hop.delayMs < -BACKWARD_TOLERANCE_MS;
+  let delay        = null;
+  if (hop.delayMs !== null) {
+    const amount = formatDuration(hop.delayMs);
+    delay = el('div', { class: flagged ? 'hop-meta hop-flag' : 'hop-meta' },
+      hop.delayMs < 0 ? `${amount} before the previous step` : `${amount} after the previous step`);
+  }
+  return el('li', { class: 'hop' + (hop.trusted ? ' trusted' : '') + (flagged ? ' flagged' : '') },
+    el('div', { class: 'hop-name', dir: 'auto' }, hop.from || (hop.trusted ? 'Your mail provider (internal step)' : 'Unknown server'), hop.ip ? el('span', { class: 'hop-ip' }, hop.ip) : null),
+    hop.by ? el('div', { class: 'hop-by', dir: 'auto' }, `handed to ${hop.by}`) : null,
+    el('div', { class: 'hop-meta' }, hop.time !== null ? formatTime(hop.time) : 'No readable timestamp'),
+    delay,
+    el('div', { class: 'hop-tag' }, hop.trusted ? 'Recorded by your mail provider' : 'Claimed by an earlier server, can be forged'),
+  );
+}
+
+function renderRoute(a          )              {
+  const section = el('section', { class: 'block' }, el('h2', {}, 'Route'));
+  if (a.hops.length === 0) {
+    section.append(el('p', { class: 'sub' }, 'No "Received" lines were found, so the route is unknown.'));
+    return section;
+  }
+  section.append(
+    el('p', { class: 'sub' }, 'Read from top to bottom: the sender\'s side first, your inbox last. Only steps recorded by your own mail provider are reliable. Earlier steps are written by the sender\'s side and can be forged.'),
+    el('ol', { class: 'route' }, ...a.hops.map(renderHop)),
+  );
+  return section;
+}
+
+function renderFinding(f         )              {
+  return el('div', { class: `finding sev-${f.severity}` },
+    el('h4', { class: 'finding-title' }, f.title),
+    el('p', { class: 'finding-why' }, f.why),
+    f.evidence.length > 0
+      ? el('div', { class: 'evidence' }, ...f.evidence.map((line) => el('div', { dir: 'auto' }, line)))
+      : null,
+  );
+}
+
+function renderFindings(a          )              {
+  const section = el('section', { class: 'block' }, el('h2', {}, 'What the headers show'));
+  for (const [severity, title] of GROUPS) {
+    const items = a.findings.filter((f) => f.severity === severity);
+    if (items.length === 0) continue;
+    section.append(
+      el('h3', { class: `group-title sev-${severity}` }, `${title} (${items.length})`),
+      el('div', {}, ...items.map(renderFinding)),
+    );
+  }
+  const passed = a.findings.filter((f) => f.severity === 'ok');
+  if (passed.length > 0) {
+    section.append(el('details', { class: 'passed' },
+      el('summary', {}, `Checks that passed (${passed.length})`),
+      el('div', {}, ...passed.map(renderFinding)),
+    ));
+  }
+  if (a.counts.danger + a.counts.warning + a.counts.info + a.counts.ok === 0) {
+    section.append(el('p', { class: 'sub' }, 'Nothing to report.'));
+  }
+  return section;
+}
+
+function renderRaw(a          )              {
+  const shown = a.headers.fields.slice(0, 300);
+  return el('details', { class: 'block raw' },
+    el('summary', {}, `All ${a.headers.fields.length} headers as read`),
+    el('div', { class: 'raw-list' }, ...shown.map((f) =>
+      el('div', { class: 'raw-row' }, el('span', { class: 'raw-name' }, f.name), el('span', { class: 'raw-value', dir: 'auto' }, f.value)))),
+  );
+}
+
+function emptyState()              {
+  return el('p', { class: 'empty' }, 'Paste the headers on the left. You will see the route the message took, whether the sender was verified, and anything that looks off.');
+}
+
+function start()       {
+  const input = document.getElementById('input')                       ;
+  const results = document.getElementById('results')               ;
+  const note = document.getElementById('sample-note')               ;
+  const samples = Object.values(SAMPLES);
+
+  function update()       {
+    const text = input.value;
+    note.hidden = !samples.includes(text);
+    if (text.trim() === '') {
+      results.replaceChildren(emptyState());
+      return;
+    }
+    try {
+      const a = analyze(text);
+      results.replaceChildren(renderMessage(a), renderRoute(a), renderFindings(a), renderRaw(a));
+    } catch {
+      results.replaceChildren(el('p', { class: 'empty' }, 'Something went wrong while reading this text. Try pasting the headers again.'));
+    }
+  }
+
+  let timer                    ;
+  input.addEventListener('input', () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(update, 200);
+  });
+
+  document.querySelectorAll                   ('[data-sample]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const key = button.dataset.sample ?? '';
+      if (Object.prototype.hasOwnProperty.call(SAMPLES, key)) {
+        input.value = SAMPLES[key];
+        update();
+      }
+    });
+  });
+  document.getElementById('clear')?.addEventListener('click', () => {
+    input.value = '';
+    update();
+    input.focus();
+  });
+
+  input.value = SAMPLES.phishing;
+  update();
+}
+
+if (typeof document !== 'undefined') start();
+
+})();</script>
+</body>
+</html>

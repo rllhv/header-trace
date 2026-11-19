@@ -1,0 +1,19 @@
+Delivered-To: sara@mail-provider.example
+Received: by 2002:a05:6a00:1111:b0:1c3:dd44:ee55 with SMTP id z9csp11111pxb;
+        Wed, 7 Oct 2026 03:15:44 -0700 (PDT)
+Received: from mail.xn--pple-43d.example (mail.xn--pple-43d.example [198.51.100.90])
+        by mx.mail-provider.example with ESMTPS id u7si222222ejt.5.2026.10.07.03.15.43
+        for <sara@mail-provider.example>;
+        Wed, 07 Oct 2026 03:15:43 -0700 (PDT)
+Authentication-Results: mx.mail-provider.example;
+       dkim=pass header.d=xn--pple-43d.example header.s=mail;
+       spf=pass smtp.mailfrom=support@xn--pple-43d.example;
+       dmarc=pass (p=NONE) header.from=xn--pple-43d.example
+Return-Path: <support@xn--pple-43d.example>
+From: "Apple Support" <support@xn--pple-43d.example>
+To: sara@mail-provider.example
+Subject: =?UTF-8?B?2KrZhtio2YrZhzog2KrZhSDYqtmC2YrZitivINit2LPYp9io2YMgLSDZitix2KzZiSDYp9mE2KrYo9mD2YrYrw==?=
+Date: Wed, 7 Oct 2026 10:15:40 +0000
+Message-ID: <a1b2c3@xn--pple-43d.example>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"

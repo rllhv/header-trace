@@ -1,0 +1,24 @@
+Delivered-To: sara@mail-provider.example
+Received: by 2002:a05:6a00:aaaa:b0:1c3:bb22:cc33 with SMTP id r2csp654321pxb;
+        Mon, 5 Oct 2026 08:02:11 -0700 (PDT)
+Received: from out-12.news.example.com (out-12.news.example.com. [192.0.2.44])
+        by mx.mail-provider.example with ESMTPS id d5si9876543ejb.101.2026.10.05.08.02.10
+        for <sara@mail-provider.example>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Mon, 05 Oct 2026 08:02:10 -0700 (PDT)
+Received: from app-7.internal.example.com (app-7.internal.example.com [10.20.4.17])
+        by out-12.news.example.com (Postfix) with ESMTP id 4F1A92C0D;
+        Mon,  5 Oct 2026 15:02:08 +0000 (UTC)
+Authentication-Results: mx.mail-provider.example;
+       dkim=pass header.i=@news.example.com header.s=s1 header.b=Ab12CdEf;
+       spf=pass (mail-provider.example: domain of bounces@bounces.news.example.com designates 192.0.2.44 as permitted sender) smtp.mailfrom=bounces@bounces.news.example.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=news.example.com
+Return-Path: <bounces@bounces.news.example.com>
+From: "Example News" <hello@news.example.com>
+Reply-To: hello@news.example.com
+To: sara@mail-provider.example
+Subject: Your weekly digest
+Date: Mon, 5 Oct 2026 15:02:05 +0000
+Message-ID: <20261005150205.4F1A92C0D@out-12.news.example.com>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="b1"
