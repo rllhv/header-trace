@@ -41,6 +41,15 @@ The second sample above shows why the checks are layered: SPF, DKIM and DMARC al
 - **Thresholds are judgement calls.** Two minutes of tolerated clock skew, six hours for a "long delay" and 24 hours for a Date mismatch are reasonable defaults, not standards.
 - **Browser support.** Checked in Chromium only.
 
+## Roadmap
+
+Ideas for future versions:
+
+- Test the checks against a wider set of real-world headers from different providers (Gmail, Outlook, Yahoo, Exchange) and fix the formats they handle differently.
+- Let readers extend the list of brands used for look-alike checks without editing the code.
+- Add an Arabic interface with right-to-left layout.
+- Export the findings as a short report that can be attached to a phishing report.
+
 ## Author
 
 Built by REMAS ([@rllhv](https://github.com/rllhv)).
